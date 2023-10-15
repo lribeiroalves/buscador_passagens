@@ -1,1 +1,13 @@
 2023-10-15 12:42:55 - Execucao encerrada sem erros.2023-10-15 12:44:01 - Execucao encerrada. [ERRO] Algum input necessario para a busca nao esta informado corretamente no arquivo de configuracao json2023-10-15 12:49:09 - Execucao encerrada. [WARNING] Nenhuma passagem com preco abaixo do desejado foi encontrada.2023-10-15 12:49:09 - Execucao encerrada sem erros.2023-10-15 13:03:47 - Execucao encerrada. [WARNING] Nenhuma passagem com preco abaixo do desejado foi encontrada.2023-10-15 13:03:47 - Execucao encerrada sem erros.2023-10-15 13:15:53 - Execucao encerrada sem erros.2023-10-15 13:22:08 - Execucao encerrada sem erros.
+2023-10-15 13:39:51 - Execucao encerrada sem erros.
+2023-10-15 13:43:08 - Execucao encerrada. [ERRO] Algum input necessario para a busca nao esta informado corretamente no arquivo de configuracao json
+2023-10-15 13:43:30 - Execucao encerrada. [ERRO] Algum input necessario para a busca nao esta informado corretamente no arquivo de configuracao json
+2023-10-15 13:43:55 - Execucao encerrada. [ERRO] Algum input necessario para a busca nao esta informado corretamente no arquivo de configuracao json
+2023-10-15 13:44:11 - Execucao encerrada. [ERRO] Algum input necessario para a busca nao esta informado corretamente no arquivo de configuracao json
+2023-10-15 13:56:20 - Execucao encerrada. [ERRO] Alguma tag do arquivo de configuracao json nao esta presente. Tags necessarias [mode, navegador, destino, d_inicio, da_fim, periodo, p_desejado, mail_to]
+2023-10-15 13:57:24 - Execucao encerrada. [ERRO] Alguma tag do arquivo de configuracao json nao esta presente. Tags necessarias [mode, navegador, destino, d_inicio, da_fim, periodo, p_desejado, mail_to]
+2023-10-15 14:00:03 - Execucao encerrada. [ERRO] Arquivo de configuracao com erro de formatacao.
+2023-10-15 14:00:35 - Execucao encerrada. [ERRO] Alguma tag do arquivo de configuracao json nao esta presente. Tags necessarias [mode, navegador, destino, d_inicio, da_fim, periodo, p_desejado, mail_to]
+2023-10-15 14:01:31 - Execucao encerrada. [ERRO] O campo "mail_to" do arquivo de configuracao esta vazio ou nao e uma lista []
+2023-10-15 14:01:31 - Execucao encerrada sem erros.
+2023-10-15 14:03:26 - Execucao encerrada. [ERRO] O campo "mail_to" do arquivo de configuracao esta vazio ou nao e uma lista []

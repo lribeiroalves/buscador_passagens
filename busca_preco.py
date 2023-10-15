@@ -32,20 +32,20 @@ def verifica_data(data: str) -> bool:
 
     # meses com 31 dias
     if mes in ['01', '03', '05', '07', '08', '10', '12']:
-        if int(dia) <= 31:
+        if 0 < int(dia) <= 31:
             check = True
     # meses com 30 dias
     elif mes in ['04', '06', '09', '11']:
-        if int(dia) <= 30:
+        if 0 < int(dia) <= 30:
             check = True
     # fevereiro
     elif mes == '02':
         # testa se é bissexto
         if (int(ano) % 4 == 0 and int(ano) % 100 != 0) or int(ano) % 400 == 0:
-            if int(dia) <= 29:
+            if 0 < int(dia) <= 29:
                 check = True
         else:
-            if int(dia) <= 28:
+            if 0 < int(dia) <= 28:
                 check = True
     
     return check
@@ -103,134 +103,139 @@ try:
         config_json = json.load(f)
         if list(config_json.keys()) == chaves_json:
             verify_config = True
+        else:
+            with open('log-saida.txt', 'a') as f:
+                f.write(f'\n{str(datetime.now())[:19]} - Execucao encerrada. [ERRO] Alguma tag do arquivo de configuracao json nao esta presente. Tags necessarias [mode, navegador, destino, d_inicio, da_fim, periodo, p_desejado, mail_to]')
 except IOError:
     with open('log-saida.txt', 'a') as f:
-        f.write(f'{str(datetime.now())[:19]} - Execucao encerrada. [ERRO] Arquivo de configuracao nao encontrado.')
+        f.write(f'\n{str(datetime.now())[:19]} - Execucao encerrada. [ERRO] Arquivo de configuracao nao encontrado.')
+except json.decoder.JSONDecodeError:
+    with open('log-saida.txt', 'a') as f:
+        f.write(f'\n{str(datetime.now())[:19]} - Execucao encerrada. [ERRO] Arquivo de configuracao com erro de formatacao.')
 
-# verificar nas configurações se o programa deve rodar em primeiro ou segundo plano
-padrao_data = re.compile(r'\d{2}\/\d{2}\/\d{4}')
-if verify_config and config_json['mode'] == 'primeiro':
-    while True:
-        # solicitar ao usuario a cidade de destino da viagem
+if verify_config:
+    # verificar nas configurações se o programa deve rodar em primeiro ou segundo plano
+    padrao_data = re.compile(r'\d{2}\/\d{2}\/\d{4}')
+    if config_json['mode'] == 'primeiro':
         while True:
-            destino = input('Qual a cidade de destino da viagem? ').capitalize()
-            if len(destino) > 0:
-                break
-            else:
-                print('Você precisa digitar o destino da viagem!')
-
-        # solicitar ao ususario a data inicial de embarque
-        while True:
-            data_inicio = input('Qual a data inicial da pesquisa?(formato: dd/mm/aaaa) ')
-            if len(re.findall(padrao_data, data_inicio)) > 0:
-                if verifica_data(data_inicio):
-                    d_ini = date(year=int(data_inicio[-4:]), month=int(data_inicio[3:5]), day=int(data_inicio[:2]))
-                    if d_ini >= date.today():
-                        break
-                    else:
-                        print('A data inicial deve ser maior ou igual a data de hoje. Digite novamente.')
-                else:
-                    print('A data digitada está no formato solicitado, porém não é uma data válida. Digite novamente.')
-            else:
-                print('A data digitada não está no formato esperado (dd/mm/aaaa). Digite novamente.')
-
-        # solicitar ao usuario a data final de embarque
-        while True:
-            data_fim = input('Qual a data final da pesquisa?(formato: dd/mm/aaaa) ')
-            if len(re.findall(padrao_data, data_fim)) > 0:
-                if verifica_data(data_fim):
-                    d_fim = date(year=int(data_fim[-4:]), month=int(data_fim[3:5]), day=int(data_fim[:2]))
-                    if d_fim >= d_ini:
-                        break
-                    else:
-                        print('A data final não pode ser menor do que a data inicial. Digite novamente.')
-                else:
-                    print('A data digitada está no formato solicitado, porém não é uma data válida. Digite novamente.')
-            else:
-                print('A data digitada não está no formato esperado (dd/mm/aaaa). Digite novamente.')
-
-        # solicitar ao usuario o período da viagem em dias
-        while True:
-            periodo_dias = input('Digite o numero de dias da viagem? ')
-            if periodo_dias.isnumeric():
-                if int(periodo_dias) >= 0:
+            # solicitar ao usuario a cidade de destino da viagem
+            while True:
+                destino = input('Qual a cidade de destino da viagem? ').capitalize()
+                if len(destino) > 0:
                     break
                 else:
-                    print('O período da viagem deve ser maior ou igual a 0')
-            else:
-                print('O período digitado não é válido. Digite novamente.')
+                    print('Você precisa digitar o destino da viagem!')
+
+            # solicitar ao ususario a data inicial de embarque
+            while True:
+                data_inicio = input('Qual a data inicial da pesquisa?(formato: dd/mm/aaaa) ')
+                if len(re.findall(padrao_data, data_inicio)) > 0:
+                    if verifica_data(data_inicio):
+                        d_ini = date(year=int(data_inicio[-4:]), month=int(data_inicio[3:5]), day=int(data_inicio[:2]))
+                        if d_ini >= date.today():
+                            break
+                        else:
+                            print('A data inicial deve ser maior ou igual a data de hoje. Digite novamente.')
+                    else:
+                        print('A data digitada está no formato solicitado, porém não é uma data válida. Digite novamente.')
+                else:
+                    print('A data digitada não está no formato esperado (dd/mm/aaaa). Digite novamente.')
+
+            # solicitar ao usuario a data final de embarque
+            while True:
+                data_fim = input('Qual a data final da pesquisa?(formato: dd/mm/aaaa) ')
+                if len(re.findall(padrao_data, data_fim)) > 0:
+                    if verifica_data(data_fim):
+                        d_fim = date(year=int(data_fim[-4:]), month=int(data_fim[3:5]), day=int(data_fim[:2]))
+                        if d_fim >= d_ini:
+                            break
+                        else:
+                            print('A data final não pode ser menor do que a data inicial. Digite novamente.')
+                    else:
+                        print('A data digitada está no formato solicitado, porém não é uma data válida. Digite novamente.')
+                else:
+                    print('A data digitada não está no formato esperado (dd/mm/aaaa). Digite novamente.')
+
+            # solicitar ao usuario o período da viagem em dias
+            while True:
+                periodo_dias = input('Digite o numero de dias da viagem? ')
+                if periodo_dias.isnumeric():
+                    if int(periodo_dias) >= 0:
+                        break
+                    else:
+                        print('O período da viagem deve ser maior ou igual a 0')
+                else:
+                    print('O período digitado não é válido. Digite novamente.')
+            
+            # solicitar ao usuario o preço desejado que ele está buscando
+            while True:
+                replacements = [(',', ''), ('.', ''), ('R', ''), ('$', ''), ('U', ''), ('E', '')]
+                preco_desejado = input('Digite o preço desejado, usando apenas números e sem separadores. ')
+                if ',' in preco_desejado:
+                    preco_desejado = preco_desejado.split(',')[0]
+                for char, replacement in replacements:
+                    if char in preco_desejado:
+                        preco_desejado = preco_desejado.replace(char, replacement)
+                if preco_desejado.isnumeric():
+                    break
+                else:
+                    print('O valor digitado não é um número. Digite novamente.')
+            
+            print(f'\n\n\n\n\nDestino da Viagem: {destino}')
+            print(f'Data inicial da pesquisa: {data_inicio}')
+            print(f'Data final da pesquisa: {data_fim}')
+            print(f'Período da viagem: {periodo_dias} dias')
+            print(f'O preço desejado é: R${int(preco_desejado):.2f}')
+
+            confirmacao = ' '
+            while confirmacao not in 'NS':
+                confirmacao = input('Você confirma as informações inserida e quer continuar com a busca? [S/N] ').upper()
+            if confirmacao == 'S':
+                break
+    elif verify_config and config_json['mode'] == 'segundo':
+        if len(config_json['destino']) == 0 or len(config_json['d_inicio']) == 0 or len(config_json['d_fim']) == 0 or len(config_json['periodo']) == 0 or len(config_json['p_desejado']) == 0:
+            verify_config = False
         
-        # solicitar ao usuario o preço desejado que ele está buscando
-        while True:
+        verify_input = [False] * 5
+        # destino já foi verificado acima
+        destino = config_json['destino'].capitalize()
+        verify_input[0] = True
+        # data inicial
+        if len(re.findall(padrao_data, config_json['d_inicio'])) > 0 and verify_input[0]:
+            if verifica_data(config_json['d_inicio']):
+                data_inicio = config_json['d_inicio']
+                d_ini = date(year=int(data_inicio[-4:]), month=int(data_inicio[3:5]), day=int(data_inicio[:2]))
+                if d_ini >= date.today():
+                    verify_input[1] = True
+        # data final
+        if len(re.findall(padrao_data, config_json['d_fim'])) > 0 and verify_input[1]:
+            if verifica_data(config_json['d_fim']):
+                data_fim = config_json['d_fim']
+                d_fim = date(year=int(data_fim[-4:]), month=int(data_fim[3:5]), day=int(data_fim[:2]))
+                if d_fim >= d_ini:
+                    verify_input[2] = True
+        # periodo da viagem
+        if config_json['periodo'].isnumeric() and verify_input[2]:
+            if int(config_json['periodo']) >= 0:
+                periodo_dias = config_json['periodo']
+                verify_input[3] = True
+        # preço desejado
+        if verify_input[3]:
             replacements = [(',', ''), ('.', ''), ('R', ''), ('$', ''), ('U', ''), ('E', '')]
-            preco_desejado = input('Digite o preço desejado, usando apenas números e sem separadores. ')
-            if ',' in preco_desejado:
-                preco_desejado = preco_desejado.split(',')[0]
+            preco_desejado = config_json['p_desejado']
             for char, replacement in replacements:
                 if char in preco_desejado:
                     preco_desejado = preco_desejado.replace(char, replacement)
             if preco_desejado.isnumeric():
-                break
-            else:
-                print('O valor digitado não é um número. Digite novamente.')
+                verify_input[4] = True
         
-        print(f'\n\n\n\n\nDestino da Viagem: {destino}')
-        print(f'Data inicial da pesquisa: {data_inicio}')
-        print(f'Data final da pesquisa: {data_fim}')
-        print(f'Período da viagem: {periodo_dias} dias')
-        print(f'O preço desejado é: R${int(preco_desejado):.2f}')
-
-        confirmacao = ' '
-        while confirmacao not in 'NS':
-            confirmacao = input('Você confirma as informações inserida e quer continuar com a busca? [S/N] ').upper()
-        if confirmacao == 'S':
-            break
-
-elif verify_config and config_json['mode'] == 'segundo':
-    if len(config_json['destino']) == 0 or len(config_json['d_inicio']) == 0 or len(config_json['d_fim']) == 0 or len(config_json['periodo']) == 0 or len(config_json['p_desejado']) == 0:
-        verify_config = False
-    
-    verify_input = [False] * 5
-    # destino já foi verificado acima
-    destino = config_json['destino'].capitalize()
-    verify_input[0] = True
-    # data inicial
-    if len(re.findall(padrao_data, config_json['d_inicio'])) > 0 and verify_input[0]:
-        if verifica_data(config_json['d_inicio']):
-            data_inicio = config_json['d_inicio']
-            d_ini = date(year=int(data_inicio[-4:]), month=int(data_inicio[3:5]), day=int(data_inicio[:2]))
-            if d_ini >= date.today():
-                verify_input[1] = True
-    # data final
-    if len(re.findall(padrao_data, config_json['d_fim'])) > 0 and verify_input[1]:
-        if verifica_data(config_json['d_fim']):
-            data_fim = config_json['d_fim']
-            d_fim = date(year=int(data_fim[-4:]), month=int(data_fim[3:5]), day=int(data_fim[:2]))
-            if d_fim >= d_ini:
-                verify_input[2] = True
-    # periodo da viagem
-    if config_json['periodo'].isnumeric() and verify_input[2]:
-        if int(config_json['periodo']) >= 0:
-            periodo_dias = config_json['periodo']
-            verify_input[3] = True
-    # preço desejado
-    if verify_input[3]:
-        replacements = [(',', ''), ('.', ''), ('R', ''), ('$', ''), ('U', ''), ('E', '')]
-        preco_desejado = config_json['p_desejado']
-        for char, replacement in replacements:
-            if char in preco_desejado:
-                preco_desejado = preco_desejado.replace(char, replacement)
-        if preco_desejado.isnumeric():
-            verify_input[4] = True
-    
-    if verify_input != [True] * 5:
-        verify_config = False
+        if verify_input != [True] * 5:
+            verify_config = False
+            with open('log-saida.txt', 'a') as f:
+                f.write(f'\n{str(datetime.now())[:19]} - Execucao encerrada. [ERRO] Algum input necessario para a busca nao esta informado corretamente no arquivo de configuracao json.')
+    else:
         with open('log-saida.txt', 'a') as f:
-            f.write(f'{str(datetime.now())[:19]} - Execucao encerrada. [ERRO] Algum input necessario para a busca nao esta informado corretamente no arquivo de configuracao json')
-
-else:
-    with open('log-saida.txt', 'a') as f:
-        f.write(f'{str(datetime.now())[:19]} - Execucao encerrada. [ERRO] Arquivo de configuracao nao especifica se o programa deve rodar em primeiro ou segundo plano.')
+            f.write(f'\n{str(datetime.now())[:19]} - Execucao encerrada. [ERRO] Arquivo de configuracao nao especifica se o programa deve rodar em primeiro ou segundo plano.')
 
 if verify_config:
     # configurações do navegador
@@ -359,57 +364,61 @@ if verify_config:
 
         print('', end='\n\n\n')
         with open('log-saida.txt', 'a') as f:
-            f.write(f'{str(datetime.now())[:19]} - Execucao encerrada sem erros.')
+            f.write(f'\n{str(datetime.now())[:19]} - Execucao encerrada sem erros.')
     elif config_json['mode'] == 'segundo':
         if len(lista_preco_desejado) > 0:
-            r = re.compile(r'^[\w-]+@(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}$')
-            filtered_emails = sorted(email for email in config_json['mail_to'] if r.match(email))
-            for mail in config_json['mail_to']:
-                if mail in filtered_emails:
-                    # enviar e-mail
-                    mensagem = f"""
-                    <h1 style="color:red;">Buscador de Preços no Google Flights</h1>
+            if type(config_json['mail_to']) == list and len(config_json['mail_to']) > 0:
+                r = re.compile(r'^[\w-]+@(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}$')
+                filtered_emails = sorted(email for email in config_json['mail_to'] if r.match(email))
+                for mail in config_json['mail_to']:
+                    if mail in filtered_emails:
+                        # enviar e-mail
+                        mensagem = f"""
+                        <h1 style="color:red;">Buscador de Preços no Google Flights</h1>
 
-                    <p style="font-size:1.2em">Destino: <strong style="font-size:1.4em">{destino}</strong></p>
-                    <p style="font-size:1.2em">Primeira data de busca: <strong style="font-size:1.4em">{data_inicio}</strong> - Última data de busca: <strong style="font-size:1.4em">{data_fim}</strong></p>
-                    <p style="font-size:1.2em">Período da viagem: <strong style="font-size:1.4em">{periodo_dias} dias</strong></p>
-                    <p style="font-size:1.2em">Preço desejado: <strong style="font-size:1.4em">R${int(preco_desejado):.2f}</strong></p>
+                        <p style="font-size:1.2em">Destino: <strong style="font-size:1.4em">{destino}</strong></p>
+                        <p style="font-size:1.2em">Primeira data de busca: <strong style="font-size:1.4em">{data_inicio}</strong> - Última data de busca: <strong style="font-size:1.4em">{data_fim}</strong></p>
+                        <p style="font-size:1.2em">Período da viagem: <strong style="font-size:1.4em">{periodo_dias} dias</strong></p>
+                        <p style="font-size:1.2em">Preço desejado: <strong style="font-size:1.4em">R${int(preco_desejado):.2f}</strong></p>
 
-                    """
+                        """
 
-                    mensagem += f'As seguintes datas para {destino} apresentaram preços abaixo do preço desejado:<br><br>'
-                    for k, i in dic_preco_desejado.items():
-                        k_data = k[:9].split('/')
-                        k_data = date(year=int(k_data[2]), month=int(k_data[1]), day=int(k_data[0]))
-                        k_retorno = k.split(' - ')
-                        k_retorno = k_data + timedelta(days=int(k_retorno[1][0]))
-                        mensagem += f'{k_data:%d/%m/%Y} -- {k_retorno:%d/%m/%Y} --> '
-                        for index, preco in enumerate(i):
-                            if index == len(i) - 1:
-                                mensagem += f'R${preco:.2f}<br>'
-                            else:
-                                f'R${preco:.2f}, '
-                    
-                    if len(menor_preco) > 1:
-                        mensagem += '<br><br>Os menores preços encontrados foram:'
+                        mensagem += f'As seguintes datas para {destino} apresentaram preços abaixo do preço desejado:<br><br>'
+                        for k, i in dic_preco_desejado.items():
+                            k_data = k[:9].split('/')
+                            k_data = date(year=int(k_data[2]), month=int(k_data[1]), day=int(k_data[0]))
+                            k_retorno = k.split(' - ')
+                            k_retorno = k_data + timedelta(days=int(k_retorno[1][0]))
+                            mensagem += f'{k_data:%d/%m/%Y} -- {k_retorno:%d/%m/%Y} --> '
+                            for index, preco in enumerate(i):
+                                if index == len(i) - 1:
+                                    mensagem += f'R${preco:.2f}<br>'
+                                else:
+                                    f'R${preco:.2f}, '
+                        
+                        if len(menor_preco) > 1:
+                            mensagem += '<br><br>Os menores preços encontrados foram:'
+                        else:
+                            mensagem += '<br><br>O menor preço encontrado foi '
+
+                        for viagem, preco in menor_preco.items():
+                            mensagem += f'{preco} com ida e retorno nos dias {viagem}<br>'
+
+                            assunto = 'Bot Buscador de Preços de Passagens'
+                            email_to = mail
+
+                        enviar_email(email_to, assunto, mensagem)
+                        with open('log-saida.txt', 'a') as f:
+                            f.write(f'\n{str(datetime.now())[:19]} - Execucao encerrada sem erros.')
                     else:
-                        mensagem += '<br><br>O menor preço encontrado foi '
-
-                    for viagem, preco in menor_preco.items():
-                        mensagem += f'{preco} com ida e retorno nos dias {viagem}<br>'
-
-                        assunto = 'Bot Buscador de Preços de Passagens'
-                        email_to = mail
-
-                    enviar_email(email_to, assunto, mensagem)
-                else:
-                    with open('log-saida.txt', 'a') as f:
-                        f.write(f'{str(datetime.now())[:19]} - Execucao encerrada. [ERRO] Nao foi possivel enviar o e-mail pois o endereco cadastrado no arquivo de configuracao nao e um e-mail valido.')
+                        with open('log-saida.txt', 'a') as f:
+                            f.write(f'\n{str(datetime.now())[:19]} - Execucao encerrada. [ERRO] Nao foi possivel enviar o e-mail pois o endereco cadastrado no arquivo de configuracao nao e um e-mail valido.')
+            else:
+                with open('log-saida.txt', 'a') as f:
+                    f.write(f'\n{str(datetime.now())[:19]} - Execucao encerrada. [ERRO] O campo "mail_to" do arquivo de configuracao esta vazio ou nao e uma lista []')
         else:
             with open('log-saida.txt', 'a') as f:
-                f.write(f'{str(datetime.now())[:19]} - Execucao encerrada. [WARNING] Nenhuma passagem com preco abaixo do desejado foi encontrada.')
-        with open('log-saida.txt', 'a') as f:
-            f.write(f'{str(datetime.now())[:19]} - Execucao encerrada sem erros.')
+                f.write(f'\n{str(datetime.now())[:19]} - Execucao encerrada. [WARNING] Nenhuma passagem com preco abaixo do desejado foi encontrada.')
     else:
         with open('log-saida.txt', 'a') as f:
-            f.write(f'{str(datetime.now())[:19]} - Execucao encerrada. [ERRO] Nao foi possivel enviar ou exibir os dados por um problema no arquivo de configuracao.')
+            f.write(f'\n{str(datetime.now())[:19]} - Execucao encerrada. [ERRO] Nao foi possivel enviar ou exibir os dados por um problema no arquivo de configuracao.')

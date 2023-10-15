@@ -1,10 +1,10 @@
 {
     "mode": "segundo",
-    "navegador": "noheadless",
+    "navegador": "headless",
     "destino": "santiago",
     "d_inicio": "01/07/2024",
-    "d_fim": "05/07/2024",
-    "periodo": "6",
+    "d_fim": "01/07/2024",
+    "periodo": "0",
     "p_desejado": "1500",
     "mail_to": ["lucasribeiroalves@live.com"]
 }
