@@ -192,7 +192,7 @@ elif verify_config and config_json['mode'] == 'segundo':
     
     verify_input = [False] * 5
     # destino já foi verificado acima
-    destino = config_json['destino']
+    destino = config_json['destino'].capitalize()
     verify_input[0] = True
     # data inicial
     if len(re.findall(padrao_data, config_json['d_inicio'])) > 0 and verify_input[0]:
@@ -358,27 +358,58 @@ if verify_config:
             print(f'{preco} com ida e retorno nos dias {viagem}')
 
         print('', end='\n\n\n')
+        with open('log-saida.txt', 'a') as f:
+            f.write(f'{str(datetime.now())[:19]} - Execucao encerrada sem erros.')
     elif config_json['mode'] == 'segundo':
-        r = re.compile(r'^[\w-]+@(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}$')
-        if r.match(config_json['mail_to']):
-            # enviar e-mail
-            mensagem = f"""
-            <h1 style="color:red;">Buscador de Preços no Google Flights</h1>
+        if len(lista_preco_desejado) > 0:
+            r = re.compile(r'^[\w-]+@(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}$')
+            filtered_emails = sorted(email for email in config_json['mail_to'] if r.match(email))
+            for mail in config_json['mail_to']:
+                if mail in filtered_emails:
+                    # enviar e-mail
+                    mensagem = f"""
+                    <h1 style="color:red;">Buscador de Preços no Google Flights</h1>
 
-            <p style="font-size:1.2em">Destino: <strong style="font-size:1.4em">{destino}</strong></p>
-            <p style="font-size:1.2em">Primeira data de busca: <strong style="font-size:1.4em">{data_inicio}</strong> - Última data de busca: <strong style="font-size:1.4em">{data_fim}</strong></p>
-            <p style="font-size:1.2em">Período da viagem: <strong style="font-size:1.4em">{periodo_dias} dias</strong></p>
-            <p style="font-size:1.2em">Preço desejado: <strong style="font-size:1.4em">R${int(preco_desejado):.2f}</strong></p>
+                    <p style="font-size:1.2em">Destino: <strong style="font-size:1.4em">{destino}</strong></p>
+                    <p style="font-size:1.2em">Primeira data de busca: <strong style="font-size:1.4em">{data_inicio}</strong> - Última data de busca: <strong style="font-size:1.4em">{data_fim}</strong></p>
+                    <p style="font-size:1.2em">Período da viagem: <strong style="font-size:1.4em">{periodo_dias} dias</strong></p>
+                    <p style="font-size:1.2em">Preço desejado: <strong style="font-size:1.4em">R${int(preco_desejado):.2f}</strong></p>
 
-            """
+                    """
 
-            assunto = 'Bot Buscador de Preços de Passagens'
-            email_to = config_json['mail_to']
+                    mensagem += f'As seguintes datas para {destino} apresentaram preços abaixo do preço desejado:<br><br>'
+                    for k, i in dic_preco_desejado.items():
+                        k_data = k[:9].split('/')
+                        k_data = date(year=int(k_data[2]), month=int(k_data[1]), day=int(k_data[0]))
+                        k_retorno = k.split(' - ')
+                        k_retorno = k_data + timedelta(days=int(k_retorno[1][0]))
+                        mensagem += f'{k_data:%d/%m/%Y} -- {k_retorno:%d/%m/%Y} --> '
+                        for index, preco in enumerate(i):
+                            if index == len(i) - 1:
+                                mensagem += f'R${preco:.2f}<br>'
+                            else:
+                                f'R${preco:.2f}, '
+                    
+                    if len(menor_preco) > 1:
+                        mensagem += '<br><br>Os menores preços encontrados foram:'
+                    else:
+                        mensagem += '<br><br>O menor preço encontrado foi '
 
-            enviar_email(email_to, assunto, mensagem)
+                    for viagem, preco in menor_preco.items():
+                        mensagem += f'{preco} com ida e retorno nos dias {viagem}<br>'
+
+                        assunto = 'Bot Buscador de Preços de Passagens'
+                        email_to = mail
+
+                    enviar_email(email_to, assunto, mensagem)
+                else:
+                    with open('log-saida.txt', 'a') as f:
+                        f.write(f'{str(datetime.now())[:19]} - Execucao encerrada. [ERRO] Nao foi possivel enviar o e-mail pois o endereco cadastrado no arquivo de configuracao nao e um e-mail valido.')
         else:
             with open('log-saida.txt', 'a') as f:
-                f.write(f'{str(datetime.now())[:19]} - Execucao encerrada. [ERRO] Nao foi possivel enviar o e-mail pois o endereco cadastrado no arquivo de configuracao nao e um e-mail valido.')
+                f.write(f'{str(datetime.now())[:19]} - Execucao encerrada. [WARNING] Nenhuma passagem com preco abaixo do desejado foi encontrada.')
+        with open('log-saida.txt', 'a') as f:
+            f.write(f'{str(datetime.now())[:19]} - Execucao encerrada sem erros.')
     else:
         with open('log-saida.txt', 'a') as f:
             f.write(f'{str(datetime.now())[:19]} - Execucao encerrada. [ERRO] Nao foi possivel enviar ou exibir os dados por um problema no arquivo de configuracao.')
