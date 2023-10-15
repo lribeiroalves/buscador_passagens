@@ -3,8 +3,8 @@
     "navegador": "headless",
     "destino": "santiago",
     "d_inicio": "01/08/2024",
-    "d_fim": "05/08/2024",
-    "periodo": "5",
+    "d_fim": "02/08/2024",
+    "periodo": "0",
     "p_desejado": "1500",
     "mail_to": "lucasribeiroalves@live.com"
 }
