@@ -1,3 +1,8 @@
+import ctypes
+
+# não exibir janela do prompt
+ctypes.windll.kernel32.FreeConsole()
+
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.keys import Keys 
@@ -8,6 +13,10 @@ import re
 import pandas as pd
 import win32com.client as win32
 import json
+
+# indicar inicio da execução
+with open('log-saida.txt', 'a') as f:
+    f.write(f'\n{str(datetime.now())[:19]} - [WARNING] Execução iniciada.')
 
 
 # declaração de funções
