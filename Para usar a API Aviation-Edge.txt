@@ -1,0 +1,86 @@
+Para usar a API Aviation-Edge e verificar se um código IATA é válido, você precisa seguir alguns passos:
+
+Obter uma chave API: Primeiro, você precisa se registrar no site da Aviation-Edge e obter uma chave de API gratuita ou paga (dependendo das suas necessidades). A chave API será usada para autenticar suas requisições.
+
+Fazer uma requisição HTTP: Com a chave da API, você pode fazer uma requisição para a API para consultar dados sobre os aeroportos. A API retorna informações como o código IATA, nome do aeroporto, localização, etc.
+
+Aqui está um exemplo de como usar a API Aviation-Edge em Python para verificar se um código IATA é válido.
+
+Passos:
+Crie uma conta e obtenha sua chave API:
+
+Registre-se no site da Aviation-Edge: https://aviation-edge.com.
+
+Após o registro, você receberá uma chave API que será usada para autenticar suas requisições.
+
+Instale a biblioteca requests (caso não tenha): Você precisará da biblioteca requests para fazer as requisições HTTP. Se ainda não a tiver instalada, use:
+
+bash
+Copiar
+pip install requests
+Exemplo de código Python para consultar a API:
+
+python
+Copiar
+import requests
+
+def verificar_codigo_aeroporto(codigo: str, chave_api: str) -> bool:
+    # URL da API com o endpoint para consultar aeroportos
+    url = f"https://aviation-edge.com/v2/public/airportDatabase?key={chave_api}"
+    
+    # Fazendo a requisição para a API
+    response = requests.get(url)
+    
+    # Verificando se a resposta foi bem-sucedida
+    if response.status_code == 200:
+        aeroportos = response.json()  # A resposta é um JSON com a lista de aeroportos
+        
+        # Verifica se o código IATA fornecido está presente na lista de aeroportos
+        for aeroporto in aeroportos:
+            if aeroporto["iataCode"] == codigo.upper():
+                return True  # Código IATA válido
+        return False  # Código IATA não encontrado
+    else:
+        print(f"Erro na requisição: {response.status_code}")
+        return False
+
+# Exemplo de uso:
+chave_api = "SUA_CHAVE_API_AQUI"  # Substitua pela sua chave API da Aviation-Edge
+
+codigo_aeroporto = "JFK"  # Código IATA que você quer verificar
+resultado = verificar_codigo_aeroporto(codigo_aeroporto, chave_api)
+
+if resultado:
+    print(f"O código {codigo_aeroporto} é um código IATA válido!")
+else:
+    print(f"O código {codigo_aeroporto} não é válido.")
+Explicação do código:
+URL da API: A URL que estamos usando é https://aviation-edge.com/v2/public/airportDatabase?key={chave_api}, onde {chave_api} é a chave fornecida para você após o registro na Aviation-Edge.
+
+Requisição HTTP: Usamos a função requests.get(url) para fazer a requisição. O JSON retornado pela API contém uma lista de aeroportos, e cada aeroporto tem um campo iataCode com o código IATA correspondente.
+
+Verificação do código: A função percorre os dados retornados e verifica se o código IATA fornecido está presente na lista de aeroportos. Se o código for encontrado, a função retorna True, indicando que o código é válido; caso contrário, retorna False.
+
+Tratamento de erros: Caso a resposta da API tenha um erro (ex.: código de status diferente de 200), o código imprime um erro e retorna False.
+
+Limitações e Notas:
+Limite de requisições: A versão gratuita da API tem um limite de requisições por minuto/dia. Certifique-se de não exceder esse limite.
+
+Formatação do código IATA: O código IATA é geralmente em maiúsculas (por exemplo, "JFK"), então é bom usar codigo.upper() para garantir que o código esteja correto independentemente de como o usuário o insira.
+
+Dados retornados: A resposta da API pode conter muitos aeroportos, por isso, ao consultar a API para verificar um código específico, pode ser necessário otimizar sua busca (por exemplo, fazendo uma consulta mais específica).
+
+Exemplos de Códigos IATA Válidos:
+JFK → Aeroporto Internacional John F. Kennedy (Nova York, EUA)
+
+LHR → Aeroporto de Heathrow (Londres, Reino Unido)
+
+GRU → Aeroporto Internacional de São Paulo (Brasil)
+
+SFO → Aeroporto Internacional de São Francisco (EUA)
+
+Conclusão:
+Esse exemplo mostra como usar a API Aviation-Edge para verificar se um código IATA é válido. Caso precise de uma base de dados maior ou um acesso mais frequente à API, considere obter um plano pago da Aviation-Edge, que oferece mais funcionalidades e menos limitações.
+
+
+
