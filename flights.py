@@ -5,6 +5,10 @@ import time
 from datetime import datetime, timedelta
 from typing import List, Tuple
 import requests
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from dotenv import load_dotenv, dotenv_values
 
 
 def pesquisa(aeroporto_origem: str, aeroporto_destino: str, data_ida: str, data_volta: str, modo_oculto: bool = True) -> Tuple[List[int], str]:
@@ -110,6 +114,59 @@ def carregar_aeroportos() -> pd.DataFrame:
     return airports.drop(airports[airports.iata == r'\N'].index).reset_index()
 
 
+def enviar_email(df: pd.DataFrame):
+    # Carregar variáveis do .env
+    load_dotenv()
+    env = dotenv_values()
+
+    SMTP_SERVER = env["SMTP_SERVER"]
+    SMTP_PORT = int(env["SMTP_PORT"])
+    SMTP_USER = env["SMTP_USER"]
+    SMTP_PASSWORD = env["SMTP_PASSWORD"]
+    EMAIL_REMETENTE = env["EMAIL_REMETENTE"]
+    EMAIL_DESTINO = env["EMAIL_DESTINO"]
+
+    # Criar e-mail com HTML
+    mensagem = MIMEMultipart()
+    mensagem["From"] = EMAIL_REMETENTE
+    mensagem["To"] = EMAIL_DESTINO
+    mensagem["Subject"] = "Teste de e-mail com HTML via Mailgun SMTP"
+
+    # Corpo do e-mail em HTML
+    corpo_email = """
+    <html>
+    <head>
+        <style>
+            body { font-family: Arial, sans-serif; }
+            h1 { color: #333366; }
+            p { font-size: 16px; }
+        </style>
+    </head>
+    <body>
+        <h1>Olá!</h1>
+        <p>Este é um <strong>e-mail de teste</strong> enviado via Mailgun SMTP com um corpo em HTML.</p>
+        <p>Você pode personalizar este e-mail com imagens, links e estilos CSS.</p>
+        <hr>
+        <p>Atenciosamente,<br>Seu Nome</p>
+    </body>
+    </html>
+    """
+
+    mensagem.attach(MIMEText(corpo_email, "html"))
+
+    # Enviar e-mail
+    try:
+        # servidor_smtp = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
+        servidor_smtp = smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT)
+        # servidor_smtp.starttls()
+        servidor_smtp.login(SMTP_USER, SMTP_PASSWORD)
+        servidor_smtp.sendmail(EMAIL_REMETENTE, EMAIL_DESTINO, mensagem.as_string())
+        servidor_smtp.quit()
+        print("E-mail enviado com sucesso!")
+    except Exception as e:
+        print(f"Erro ao enviar e-mail: {e}")
+
+
 def busca_passagem(aeroporto_origem: str, aeroporto_destino: str, periodo_inicio: str, periodo_fim: str, numero_dias: int, preco_target: float, output: str, modo_exibicao: str = 'oculto') -> pd.DataFrame:
     """Cria um DataFrame com os resultados das pesquisas de preços de passagens aéreas para cada uma das datas dentro do range entre periodo_inicio e periodo_fim.
     
@@ -188,7 +245,7 @@ def busca_passagem(aeroporto_origem: str, aeroporto_destino: str, periodo_inicio
     
     if len(resultados > 0):
         resultados.to_csv(f'{output}.csv', index=False)
-        # Enviar email
+        enviar_email(resultados)
         return False
     else:
         print(f'Nada foi encontrado para {output}.')
@@ -196,26 +253,28 @@ def busca_passagem(aeroporto_origem: str, aeroporto_destino: str, periodo_inicio
 
 
 if __name__ == '__main__':
-    hora_atual = datetime.now()
-    proxima_execucao = hora_atual
+    busca_passagem('GRU', 'CDG', '01/08/25', '01/08/25', 2, 10000, 'teste', 'aparente')
+
+    # hora_atual = datetime.now()
+    # proxima_execucao = hora_atual
     
-    # Habilitar as pesquisas
-    petrolina = True
-    suica = True
+    # # Habilitar as pesquisas
+    # petrolina = True
+    # suica = True
 
-    while True:
-        if hora_atual >= proxima_execucao:
-            print(f'Iniciando pesquisa às: {hora_atual.strftime("%d/%m/%Y, %H:%M:%S")}')
-            if petrolina:
-               petrolina = busca_passagem(aeroporto_origem='PNZ', aeroporto_destino='GRU', periodo_inicio='15/12/25', periodo_fim='23/12/25',numero_dias= 40, preco_target=750, output='petrolina')
-            if suica:
-                suica = busca_passagem(aeroporto_origem='GRU', aeroporto_destino='ZRH', periodo_inicio='28/11/25', periodo_fim='01/12/25',numero_dias= 13, preco_target=3600, output='suica')
+    # while True:
+    #     if hora_atual >= proxima_execucao:
+    #         print(f'Iniciando pesquisa às: {hora_atual.strftime("%d/%m/%Y, %H:%M:%S")}')
+    #         if petrolina:
+    #            petrolina = busca_passagem(aeroporto_origem='PNZ', aeroporto_destino='GRU', periodo_inicio='15/12/25', periodo_fim='23/12/25',numero_dias= 40, preco_target=750, output='petrolina')
+    #         if suica:
+    #             suica = busca_passagem(aeroporto_origem='GRU', aeroporto_destino='ZRH', periodo_inicio='28/11/25', periodo_fim='01/12/25',numero_dias= 13, preco_target=3600, output='suica')
         
-            proxima_execucao = hora_atual + timedelta(hours=3)
+    #         proxima_execucao = hora_atual + timedelta(hours=3)
 
-        hora_atual = datetime.now()
+    #     hora_atual = datetime.now()
         
-        # Se já encontrou os preços encerra a execução
-        if not petrolina and not suica:
-            break
+    #     # Se já encontrou os preços encerra a execução
+    #     if not petrolina and not suica:
+    #         break
         
