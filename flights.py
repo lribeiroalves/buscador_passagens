@@ -9,6 +9,7 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from dotenv import load_dotenv, dotenv_values
+import os
 
 
 def pesquisa(aeroporto_origem: str, aeroporto_destino: str, data_ida: str, data_volta: str, modo_oculto: bool = True) -> Tuple[List[int], str]:
@@ -114,7 +115,7 @@ def carregar_aeroportos() -> pd.DataFrame:
     return airports.drop(airports[airports.iata == r'\N'].index).reset_index()
 
 
-def enviar_email(df: pd.DataFrame):
+def enviar_email(origem, destino, df: pd.DataFrame):
     # Carregar variáveis do .env
     load_dotenv()
     env = dotenv_values()
@@ -124,33 +125,24 @@ def enviar_email(df: pd.DataFrame):
     SMTP_USER = env["SMTP_USER"]
     SMTP_PASSWORD = env["SMTP_PASSWORD"]
     EMAIL_REMETENTE = env["EMAIL_REMETENTE"]
-    EMAIL_DESTINO = env["EMAIL_DESTINO"]
+    EMAIL_DESTINO = env["EMAIL_DESTINO"].split(',')[:-1]
 
     # Criar e-mail com HTML
     mensagem = MIMEMultipart()
     mensagem["From"] = EMAIL_REMETENTE
-    mensagem["To"] = EMAIL_DESTINO
     mensagem["Subject"] = "Teste de e-mail com HTML via Mailgun SMTP"
 
     # Corpo do e-mail em HTML
-    corpo_email = """
-    <html>
-    <head>
-        <style>
-            body { font-family: Arial, sans-serif; }
-            h1 { color: #333366; }
-            p { font-size: 16px; }
-        </style>
-    </head>
-    <body>
-        <h1>Olá!</h1>
-        <p>Este é um <strong>e-mail de teste</strong> enviado via Mailgun SMTP com um corpo em HTML.</p>
-        <p>Você pode personalizar este e-mail com imagens, links e estilos CSS.</p>
-        <hr>
-        <p>Atenciosamente,<br>Seu Nome</p>
-    </body>
-    </html>
-    """
+    html_tabela = ''    
+    for index, row in df.iterrows():
+        linha = f'<tr><td>{row['data_ida']}</td><td>{row['data_volta']}</td><td><a href="{row['url']}">R$ {row['preco']:,.2f}</a></td></tr>'
+        html_tabela += linha
+
+    arquivo_html = 'msg.html'
+    with open(arquivo_html, 'r', encoding='utf-8') as file:
+        html_conteudo = file.read().split('QUEBRA')
+    
+    corpo_email = html_conteudo[0] + f'{origem} / {destino}' + html_conteudo[1] +  html_tabela + html_conteudo[2]
 
     mensagem.attach(MIMEText(corpo_email, "html"))
 
@@ -160,7 +152,9 @@ def enviar_email(df: pd.DataFrame):
         servidor_smtp = smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT)
         # servidor_smtp.starttls()
         servidor_smtp.login(SMTP_USER, SMTP_PASSWORD)
-        servidor_smtp.sendmail(EMAIL_REMETENTE, EMAIL_DESTINO, mensagem.as_string())
+        for i in range(len(EMAIL_DESTINO)):
+            mensagem["To"] = EMAIL_DESTINO[i]
+            servidor_smtp.sendmail(EMAIL_REMETENTE, EMAIL_DESTINO[i], mensagem.as_string())
         servidor_smtp.quit()
         print("E-mail enviado com sucesso!")
     except Exception as e:
@@ -243,9 +237,9 @@ def busca_passagem(aeroporto_origem: str, aeroporto_destino: str, periodo_inicio
         df = df.drop(df[df.preco > preco_target+(preco_target*0.1)].index).reset_index()
         resultados = pd.concat([resultados, df], ignore_index=True)
     
-    if len(resultados > 0):
+    if len(resultados) > 0:
         resultados.to_csv(f'{output}.csv', index=False)
-        enviar_email(resultados)
+        enviar_email(aeroporto_origem, aeroporto_destino, resultados)
         return False
     else:
         print(f'Nada foi encontrado para {output}.')
@@ -253,7 +247,7 @@ def busca_passagem(aeroporto_origem: str, aeroporto_destino: str, periodo_inicio
 
 
 if __name__ == '__main__':
-    busca_passagem('GRU', 'CDG', '01/08/25', '01/08/25', 2, 10000, 'teste', 'aparente')
+    busca_passagem('GRU', 'CDG', '01/08/25', '01/08/25', 2, 10000, 'teste')
 
     # hora_atual = datetime.now()
     # proxima_execucao = hora_atual
