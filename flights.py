@@ -2,8 +2,9 @@ from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
 import pandas as pd
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List, Tuple
+import requests
 
 
 def pesquisa(aeroporto_origem: str, aeroporto_destino: str, data_ida: str, data_volta: str, modo_oculto: bool = True) -> Tuple[List[int], str]:
@@ -98,14 +99,25 @@ def verificar_data(data: str) -> bool:
         return None
 
 
-def busca_passagem(aeroporto_origem: str, aeroporto_destino: str, periodo_inicio: str, periodo_fim: str, numero_dias: int, preco_target: float, modo_exibicao: str = 'oculto') -> pd.DataFrame:
+def carregar_aeroportos() -> pd.DataFrame:
+    response = requests.get('https://raw.githubusercontent.com/jpatokal/openflights/master/data/airports.dat')
+    content = response.content.decode('utf-8').split('\n')
+
+    content = [c.replace('"', '').split(',') for c in content]
+
+    airports = pd.DataFrame({'airport_name': [c[1] for c in content if len(c) == 14], 'iata': [c[4] for c in content if len(c) == 14]})
+
+    return airports.drop(airports[airports.iata == r'\N'].index).reset_index()
+
+
+def busca_passagem(aeroporto_origem: str, aeroporto_destino: str, periodo_inicio: str, periodo_fim: str, numero_dias: int, preco_target: float, output: str, modo_exibicao: str = 'oculto') -> pd.DataFrame:
     """Cria um DataFrame com os resultados das pesquisas de preços de passagens aéreas para cada uma das datas dentro do range entre periodo_inicio e periodo_fim.
     
-    As informações de aeroporto precisam ser strings de 3 caracteres informando o código do aeroporto. Ex: 'GRU' (Guarulhos).
+    As informações de aeroporto precisam ser strings de 3 caracteres informando o código do aeroporto. Ex: 'GRU' (Guarulhos). E precisam correspoder ao código IATA de um aeroporto existente.
 
-    As informações de data precisam ser strings no formato 'dd/mm/aa'.
+    As informações de data precisam ser strings no formato 'dd/mm/aa'. A data inicial não pode ser menor do que o dia atual.
     
-    O num_dias é a duração da viagem, e o preco_target é o valor que o usuário quer alcançar por aquela passagem.
+    O num_dias é a duração da viagem (minimo 2 dias), e o preco_target é o valor que o usuário quer alcançar por aquela passagem (maior que 0).
     
     modo_exibição (Default = oculto) pode assumir os valores oculto ou aparente, para definir se o usuário verá o navegador sendo aberto ou não.
     
@@ -118,8 +130,92 @@ def busca_passagem(aeroporto_origem: str, aeroporto_destino: str, periodo_inicio
     periodo_fim_dt = verificar_data(periodo_fim)
     if not periodo_fim_dt:
         raise Exception('Data de fim do período inválida. Use o formato esperado (dd/mm/aa)')
+    if periodo_inicio_dt < datetime.now():
+        raise Exception('A data inicial não pode ser menor do que o dia de hoje')
+    if periodo_fim_dt < periodo_inicio_dt:
+        raise Exception('A data final não pode ser menor do que a data inicial.')
     
     # data_formatada = data_atual.strftime("%d/%m/%y")
 
     # Verificar os códigos de aeroportos
+    airports = carregar_aeroportos()
+
+    if aeroporto_origem.upper() not in airports['iata'].values:
+        raise Exception('Aeroporto de Origem não encontrado.')
+    if aeroporto_destino.upper() not in airports['iata'].values:
+        raise Exception('Aeroporto de Destino não encontrado.')
     
+    # Verificação do numero de dias da viagem
+    try:
+        numero_dias = int(numero_dias)
+    except:
+        raise Exception('O número de dias precisa ser umm número natural maior que 1.')
+    if numero_dias < 2:
+        raise Exception('O número de dias da viagem deve ser de pelo menos 2.')
+    
+    # Verificação do preco target
+    if not (isinstance(preco_target, float) or isinstance(preco_target, int)) or preco_target <= 0:
+        raise Exception('O preço target precisa ser um número maior que 0.')
+    
+    # Verificação do modo de exibição
+    if modo_exibicao == 'oculto':
+        modo_exibicao = True
+    elif modo_exibicao == 'aparente':
+        modo_exibicao == False
+    else:
+        raise Exception('O modo de exibição deve ser "oculto" ou "aparente".')
+    
+    # Criar sequencia das datas que serão pesquisadas
+    data_atual = periodo_inicio_dt
+    data_final = periodo_fim_dt + timedelta(days=1)
+    datas_pesquisa = []
+
+    while data_atual < data_final:
+        datas_pesquisa.append((data_atual.strftime("%d/%m/%y"), (data_atual + timedelta(days=numero_dias-1)).strftime("%d/%m/%y")))
+        datas_pesquisa.append((data_atual.strftime("%d/%m/%y"), (data_atual + timedelta(days=numero_dias)).strftime("%d/%m/%y")))
+        datas_pesquisa.append((data_atual.strftime("%d/%m/%y"), (data_atual + timedelta(days=numero_dias+1)).strftime("%d/%m/%y")))
+        data_atual += timedelta(days=1)
+    
+    # Realizar as pesquisas e armazená-las em um dataframe
+    resultados = pd.DataFrame(columns=['data_ida', 'data_volta', 'preco', 'url'])
+
+    for datas in datas_pesquisa:
+        print(f'Pesquisando nas datas: {datas[0]} - {datas[1]}')
+        result = pesquisa(aeroporto_origem.upper(), aeroporto_destino.upper(), datas[0], datas[1])
+        df = pd.DataFrame({'data_ida': datas[0], 'data_volta': datas[1], 'preco': result[0], 'url': result[1]})
+        df = df.drop(df[df.preco > preco_target+(preco_target*0.1)].index).reset_index()
+        resultados = pd.concat([resultados, df], ignore_index=True)
+    
+    if len(resultados > 0):
+        resultados.to_csv(f'{output}.csv', index=False)
+        # Enviar email
+        return False
+    else:
+        print(f'Nada foi encontrado para {output}.')
+        return True
+
+
+if __name__ == '__main__':
+    hora_atual = datetime.now()
+    proxima_execucao = hora_atual
+    
+    # Habilitar as pesquisas
+    petrolina = True
+    suica = True
+
+    while True:
+        if hora_atual >= proxima_execucao:
+            print(f'Iniciando pesquisa às: {hora_atual.strftime("%d/%m/%Y, %H:%M:%S")}')
+            if petrolina:
+               petrolina = busca_passagem(aeroporto_origem='PNZ', aeroporto_destino='GRU', periodo_inicio='15/12/25', periodo_fim='23/12/25',numero_dias= 40, preco_target=750, output='petrolina')
+            if suica:
+                suica = busca_passagem(aeroporto_origem='GRU', aeroporto_destino='ZRH', periodo_inicio='28/11/25', periodo_fim='01/12/25',numero_dias= 13, preco_target=3600, output='suica')
+        
+            proxima_execucao = hora_atual + timedelta(hours=3)
+
+        hora_atual = datetime.now()
+        
+        # Se já encontrou os preços encerra a execução
+        if not petrolina and not suica:
+            break
+        
