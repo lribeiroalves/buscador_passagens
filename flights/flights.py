@@ -9,7 +9,7 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from dotenv import load_dotenv, dotenv_values
-import os
+import json
 
 
 def pesquisa(aeroporto_origem: str, aeroporto_destino: str, data_ida: str, data_volta: str, modo_oculto: bool = True) -> Tuple[List[int], str]:
@@ -116,10 +116,8 @@ def carregar_aeroportos() -> pd.DataFrame:
 
 
 def enviar_email(origem: str, destino: str, target: int, df: pd.DataFrame):
-    # Carregar variáveis do .env
-    load_dotenv()
-    env = dotenv_values()
 
+    # Variáveis de Ambiente para envio do email
     SMTP_SERVER = env["SMTP_SERVER"]
     SMTP_PORT = int(env["SMTP_PORT"])
     SMTP_USER = env["SMTP_USER"]
@@ -200,7 +198,7 @@ def busca_passagem(aeroporto_origem: str, aeroporto_destino: str, periodo_inicio
     try:
         numero_dias = int(numero_dias)
     except:
-        raise Exception('O número de dias precisa ser umm número natural maior que 1.')
+        raise Exception('O número de dias precisa ser um número natural maior que 1.')
     if numero_dias < 2:
         raise Exception('O número de dias da viagem deve ser de pelo menos 2.')
     
@@ -232,7 +230,14 @@ def busca_passagem(aeroporto_origem: str, aeroporto_destino: str, periodo_inicio
 
     for datas in datas_pesquisa:
         print(f'Pesquisando nas datas: {datas[0]} - {datas[1]} para {output}')
-        result = pesquisa(aeroporto_origem.upper(), aeroporto_destino.upper(), datas[0], datas[1])
+        try:
+            result = pesquisa(aeroporto_origem.upper(), aeroporto_destino.upper(), datas[0], datas[1])
+        except Exception as err:
+                   erro = f'Houve um erro: {type(err).__name__} - {err}'
+                   print(erro)
+                   with open('log_erros.txt', 'a') as file:
+                       file.write(f'{datetime.now()} - {datas[0]}~{datas[1]} - {output} -> {erro}\n')
+                   continue
         df = pd.DataFrame({'data_ida': datas[0], 'data_volta': datas[1], 'preco': result[0], 'url': result[1]})
         df = df.drop(df[df.preco > preco_target+(preco_target*0.1)].index).reset_index()
         resultados = pd.concat([resultados, df], ignore_index=True)
@@ -247,26 +252,53 @@ def busca_passagem(aeroporto_origem: str, aeroporto_destino: str, periodo_inicio
 
 
 if __name__ == '__main__':
+    # Carregar variáveis do ambiente
+    load_dotenv()
+    env = dotenv_values()
+
+    # Iniciar contagem de tempo
     hora_atual = datetime.now()
     proxima_execucao = hora_atual
-    
+
+    obj = env['DADOS_PESQUISA']
+
+    print(f"obj = {repr(obj)}")  # Mostra a string com os caracteres brutos
+
+    obj = json.loads(obj)
+
+    print(obj)
+    while True:
+        pass
+
     # Habilitar as pesquisas
     petrolina = True
     suica = True
+    amsterda = True
 
     while True:
         if hora_atual >= proxima_execucao:
-            print(f'Iniciando pesquisa às: {hora_atual.strftime("%d/%m/%Y, %H:%M:%S")}')
+            print(f'Iniciando pesquisa às: {hora_atual.strftime("%H:%M:%S, %d/%m/%Y")}')
             if petrolina:
                petrolina = busca_passagem(aeroporto_origem='PNZ', aeroporto_destino='GRU', periodo_inicio='15/12/25', periodo_fim='23/12/25',numero_dias= 40, preco_target=700, output='petrolina')
+            print()
             if suica:
                 suica = busca_passagem(aeroporto_origem='GRU', aeroporto_destino='ZRH', periodo_inicio='28/11/25', periodo_fim='01/12/25',numero_dias= 13, preco_target=3600, output='suica')
-        
+            print()
+            if amsterda:
+                amsterda = busca_passagem(aeroporto_origem='GRU', aeroporto_destino='AMS', periodo_inicio='28/11/25', periodo_fim='01/12/25',numero_dias= 13, preco_target=3600, output='amsterda')
+            
             proxima_execucao = hora_atual + timedelta(hours=1)
+            proxima_execucao -= timedelta(minutes=proxima_execucao.minute, seconds=proxima_execucao.second, microseconds=proxima_execucao.microsecond) # realizar a proxima pesquisa na proxima hora cheia
+
+            print(f'Pesquisa concluída às: {datetime.now().strftime("%H:%M:%S, %d/%m/%Y")}')
+            print('\n\n\n')
 
         hora_atual = datetime.now()
+
+
         
         # Se já encontrou os preços encerra a execução
-        if not petrolina and not suica:
+        if not petrolina and not suica and not amsterda:
+            print('\nTodas as pesquisas foram concluídas. Aplicação encerrada.')
             break
         
