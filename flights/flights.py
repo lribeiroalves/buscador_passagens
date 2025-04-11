@@ -10,6 +10,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from dotenv import load_dotenv, dotenv_values
 import json
+import sys
 
 
 def pesquisa(aeroporto_origem: str, aeroporto_destino: str, data_ida: str, data_volta: str, modo_oculto: bool = True) -> Tuple[List[int], str]:
@@ -123,7 +124,7 @@ def enviar_email(origem: str, destino: str, target: int, df: pd.DataFrame):
     SMTP_USER = env["SMTP_USER"]
     SMTP_PASSWORD = env["SMTP_PASSWORD"]
     EMAIL_REMETENTE = env["EMAIL_REMETENTE"]
-    EMAIL_DESTINO = env["EMAIL_DESTINO"].split(',')[:-1]
+    EMAIL_DESTINO = json.loads(env["EMAIL_DESTINO"])['emails']
 
     # Criar e-mail com HTML
     mensagem = MIMEMultipart()
@@ -150,13 +151,14 @@ def enviar_email(origem: str, destino: str, target: int, df: pd.DataFrame):
         servidor_smtp = smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT)
         # servidor_smtp.starttls()
         servidor_smtp.login(SMTP_USER, SMTP_PASSWORD)
-        for i in range(len(EMAIL_DESTINO)):
-            mensagem["To"] = EMAIL_DESTINO[i]
-            servidor_smtp.sendmail(EMAIL_REMETENTE, EMAIL_DESTINO[i], mensagem.as_string())
+        for email_destino in EMAIL_DESTINO:
+            mensagem["To"] = email_destino
+            servidor_smtp.sendmail(EMAIL_REMETENTE, email_destino, mensagem.as_string())
         servidor_smtp.quit()
         print("E-mail enviado com sucesso!")
     except Exception as e:
         print(f"Erro ao enviar e-mail: {e}")
+        raise Exception(f"Erro ao enviar e-mail: {e}")
 
 
 def busca_passagem(aeroporto_origem: str, aeroporto_destino: str, periodo_inicio: str, periodo_fim: str, numero_dias: int, preco_target: float, output: str, modo_exibicao: str = 'oculto') -> pd.DataFrame:
@@ -244,11 +246,18 @@ def busca_passagem(aeroporto_origem: str, aeroporto_destino: str, periodo_inicio
     
     if len(resultados) > 0:
         resultados.to_csv(f'{output}.csv', index=False)
-        enviar_email(aeroporto_origem, aeroporto_destino, preco_target, resultados)
-        return False
+        try:
+            enviar_email(aeroporto_origem, aeroporto_destino, preco_target, resultados)
+            return False
+        except Exception as er:
+            with open('log_erros.txt', 'a') as file:
+                       file.write(f'{datetime.now()} - {datas[0]}~{datas[1]} - {output} -> {er}\n')
     else:
         print(f'Nada foi encontrado para {output}.')
         return True
+
+
+#############################################################################################################
 
 
 if __name__ == '__main__':
@@ -258,47 +267,64 @@ if __name__ == '__main__':
 
     # Iniciar contagem de tempo
     hora_atual = datetime.now()
-    proxima_execucao = hora_atual
+    proxima_execucao = hora_atual 
 
-    obj = env['DADOS_PESQUISA']
+    try:
+        # Carregar as pesquisas
+        viagens = json.loads(env['DADOS_PESQUISA'])
+        emails = json.loads(env['EMAIL_DESTINO'])
 
-    print(f"obj = {repr(obj)}")  # Mostra a string com os caracteres brutos
+        # Verificar a integridade das informações
+        chaves_esperadas = set(['id', 'inicio', 'fim', 'periodo', 'origem', 'destino', 'target', 'enable'])
+        for k, v in enumerate(viagens):
+            if v.keys()!= chaves_esperadas:
+                raise Exception(f'A viagem {k+1} não segue o padrão correto de chaves.')
+            if type(v['id']) != str:
+                raise Exception(f'Viagem {k+1} - O "id" precisa ser uma string.')
+            data_ini = verificar_data(v['inicio'])
+            data_fim = verificar_data(v['fim'])
+            if not data_ini or not data_fim:
+                raise Exception(f'As informações de data da viagem {k+1} não estão no padrão esperado dd/mm/yy.')
+            if data_fim < data_ini:
+                raise Exception(f'A viagem {k+1} tem a data final menor do que a data inicial.')
+            if type(v['periodo']) != int or v['periodo'] < 2:
+                raise Exception(f'O período da viagem {k+1} é inválido.')
+            airports = carregar_aeroportos()
+            if type(v['origem']) != str or v['origem'].upper() not in airports['iata'].values:
+                raise Exception('Aeroporto de Origem não encontrado ou fora do padrão esperado.')
+            if type(v['destino']) != str or v['destino'].upper() not in airports['iata'].values:
+                raise Exception('Aeroporto de Destino não encontrado ou fora do padrão esperado.')
+            if type(v['target']) != int or v['target'] <= 0:
+                raise Exception(f'O target da viagem {k+1} é inválido.')
+            if type(v['enable']) != bool:
+                raise Exception(f'A veriável "enable" da viagem {k+1} precisa ser do tipo "bool".')
+        #
 
-    obj = json.loads(obj)
-
-    print(obj)
-    while True:
-        pass
-
-    # Habilitar as pesquisas
-    petrolina = True
-    suica = True
-    amsterda = True
+    except Exception as err:
+        print(f'Erro ao carregar as informações de ambiente - {type(err).__name__}: {err}')
+        sys.exit(1)
 
     while True:
         if hora_atual >= proxima_execucao:
             print(f'Iniciando pesquisa às: {hora_atual.strftime("%H:%M:%S, %d/%m/%Y")}')
-            if petrolina:
-               petrolina = busca_passagem(aeroporto_origem='PNZ', aeroporto_destino='GRU', periodo_inicio='15/12/25', periodo_fim='23/12/25',numero_dias= 40, preco_target=700, output='petrolina')
-            print()
-            if suica:
-                suica = busca_passagem(aeroporto_origem='GRU', aeroporto_destino='ZRH', periodo_inicio='28/11/25', periodo_fim='01/12/25',numero_dias= 13, preco_target=3600, output='suica')
-            print()
-            if amsterda:
-                amsterda = busca_passagem(aeroporto_origem='GRU', aeroporto_destino='AMS', periodo_inicio='28/11/25', periodo_fim='01/12/25',numero_dias= 13, preco_target=3600, output='amsterda')
+
+            for viagem in viagens:
+                if viagem['enable']:
+                    viagem['enable'] = busca_passagem(aeroporto_origem=viagem['origem'], aeroporto_destino=viagem['destino'], periodo_inicio=viagem['inicio'], periodo_fim=viagem['fim'], numero_dias=viagem['periodo'], preco_target=viagem['target'], output=viagem['id'])
+                print()
             
+            # Definir o horário da próxima pesquisa
             proxima_execucao = hora_atual + timedelta(hours=1)
             proxima_execucao -= timedelta(minutes=proxima_execucao.minute, seconds=proxima_execucao.second, microseconds=proxima_execucao.microsecond) # realizar a proxima pesquisa na proxima hora cheia
 
             print(f'Pesquisa concluída às: {datetime.now().strftime("%H:%M:%S, %d/%m/%Y")}')
-            print('\n\n\n')
+            print('\n\n')
 
         hora_atual = datetime.now()
-
-
         
         # Se já encontrou os preços encerra a execução
-        if not petrolina and not suica and not amsterda:
+        pesquisas_habilitadas = [v['enable'] for v in viagens]
+        if pesquisas_habilitadas == [False] * len(viagens):
             print('\nTodas as pesquisas foram concluídas. Aplicação encerrada.')
             break
         
